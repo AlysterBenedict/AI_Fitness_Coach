@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#121212"
+    android:padding="24dp"
+    tools:context=".PhotoInstructionsActivity">
+
+    <TextView
+        android:id="@+id/titleTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:fontFamily="@font/almendra_sc"
+        android:gravity="center"
+        android:text="AI Personalised Plan"
+        android:textColor="@android:color/white"
+        android:textSize="38sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/subtitleTextView"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="Let's generate your unique workout plan by analyzing your physique."
+        android:textColor="@android:color/darker_gray"
+        android:textSize="18sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/titleTextView" />
+
+    <LinearLayout
+        android:id="@+id/instructionsLayout"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="32dp"
+        android:paddingBottom="32dp"
+        app:layout_constraintBottom_toTopOf="@+id/startScanButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/subtitleTextView">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:drawableStart="@drawable/ic_checkmark_black"
+            android:drawablePadding="12dp"
+            android:gravity="center_vertical"
+            android:text="Stand in a well-lit area."
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            app:drawableTint="@color/gold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:drawableStart="@drawable/ic_checkmark_black"
+            android:drawablePadding="12dp"
+            android:gravity="center_vertical"
+            android:text="Wear form-fitting clothes."
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            app:drawableTint="@color/gold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:drawableStart="@drawable/ic_checkmark_black"
+            android:drawablePadding="12dp"
+            android:gravity="center_vertical"
+            android:text="Ask someone to take the photo or use a timer."
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            app:drawableTint="@color/gold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:drawableStart="@drawable/ic_checkmark_black"
+            android:drawablePadding="12dp"
+            android:gravity="center_vertical"
+            android:text="Ensure your full body is visible."
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            app:drawableTint="@color/gold" />
+
+    </LinearLayout>
+
+
+    <Button
+        android:id="@+id/startScanButton"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/button_gradient_pill"
+        android:text="Start Scan"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
