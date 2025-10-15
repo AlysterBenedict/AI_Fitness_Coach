@@ -6,7 +6,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import com.google.gson.Gson
 import org.pytorch.IValue
-
 import org.pytorch.Module
 import org.pytorch.Tensor
 import org.pytorch.torchvision.TensorImageUtils
@@ -30,9 +29,9 @@ class WorkoutGenerator(private val context: Context) {
     }
 
     init {
-        // Load all necessary assets when the class is initialized
-        bodyMetricModel = loadModel("body_metric_estimator.ptl")
-        workoutGenModel = loadModel("workout_generator.ptl")
+        // Corrected file names with the .pt extension
+        bodyMetricModel = loadModel("body_metric_estimator.pt")
+        workoutGenModel = loadModel("workout_generator.pt")
         preprocessingData = loadJson("preprocessing_data.json", PreprocessingData::class.java)
         tokenizer = loadJson("tokenizer.json", Map::class.java) as? Map<String, Int>
         idxToWord = tokenizer?.entries?.associate { (key, value) -> value to key }

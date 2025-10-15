@@ -3,116 +3,147 @@ package com.example.aifitnesscoach
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.example.aifitnesscoach.databinding.ActivityOnboardingFormBinding
+import com.example.aifitnesscoach.network.RetrofitClient
+import com.example.aifitnesscoach.network.UserData
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.launch
 
 class OnboardingFormActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityOnboardingFormBinding
-    private var frontalImageUri: Uri? = null
-    private var sideImageUri: Uri? = null
-    private lateinit var workoutGenerator: WorkoutGenerator
+    private var biometricsData: Map<String, Float>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityOnboardingFormBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        workoutGenerator = WorkoutGenerator(applicationContext)
-
-        // Retrieve the image URIs passed from the camera activity
-        intent.getStringExtra(CameraCaptureActivity.EXTRA_FRONTAL_IMAGE_URI)?.let {
-            frontalImageUri = Uri.parse(it)
-            binding.frontalImageView.setImageURI(frontalImageUri)
-        }
-        intent.getStringExtra(CameraCaptureActivity.EXTRA_SIDE_IMAGE_URI)?.let {
-            sideImageUri = Uri.parse(it)
-            binding.sideImageView.setImageURI(sideImageUri)
-        }
-
         setupSpinners()
+        handleIntentData()
 
         binding.generatePlanButton.setOnClickListener {
-            if (validateInputs()) {
-                runModelInference()
+            if (validateForm()) {
+                generateWorkoutPlan()
             }
         }
     }
 
-    private fun setupSpinners() {
-        val levelAdapter = ArrayAdapter.createFromResource(
-            this, R.array.fitness_levels, android.R.layout.simple_spinner_item
-        )
-        levelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.levelSpinner.adapter = levelAdapter
+    private fun handleIntentData() {
+        // Retrieve and parse the biometrics data
+        val biometricsJson = intent.getStringExtra("BIOMETRICS_DATA")
+        if (biometricsJson != null) {
+            val type = object : TypeToken<Map<String, Float>>() {}.type
+            biometricsData = Gson().fromJson(biometricsJson, type)
+        }
 
-        val goalAdapter = ArrayAdapter.createFromResource(
-            this, R.array.fitness_goals, android.R.layout.simple_spinner_item
-        )
-        goalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        binding.goalSpinner.adapter = goalAdapter
+        // Retrieve and display the captured images
+        val frontalImageUriString = intent.getStringExtra("FRONTAL_IMAGE_URI")
+        val sideImageUriString = intent.getStringExtra("SIDE_IMAGE_URI")
+
+        frontalImageUriString?.let { binding.frontalImageView.setImageURI(Uri.parse(it)) }
+        sideImageUriString?.let { binding.sideImageView.setImageURI(Uri.parse(it)) }
     }
 
-    private fun validateInputs(): Boolean {
-        if (frontalImageUri == null || sideImageUri == null) {
-            Toast.makeText(this, "Images are missing. Please restart.", Toast.LENGTH_SHORT).show()
-            return false
+    private fun setupSpinners() {
+        // Setup Goal Spinner
+        ArrayAdapter.createFromResource(
+            this,
+            R.array.fitness_goals,
+            android.R.layout.simple_spinner_item
+        ).also { adapter ->
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            binding.goalSpinner.adapter = adapter
         }
+
+        // Setup Difficulty Spinner
+        ArrayAdapter.createFromResource(
+            this,
+            R.array.fitness_levels,
+            android.R.layout.simple_spinner_item
+        ).also { adapter ->
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            binding.difficultySpinner.adapter = adapter
+        }
+    }
+
+    private fun validateForm(): Boolean {
         if (binding.ageEditText.text.toString().trim().isEmpty()) {
-            binding.ageInputLayout.error = "Age is required"
+            Toast.makeText(this, "Please enter your age", Toast.LENGTH_SHORT).show()
             return false
-        } else {
-            binding.ageInputLayout.error = null
         }
-        if (binding.genderRadioGroup.checkedRadioButtonId == -1) {
-            Toast.makeText(this, "Please select a gender", Toast.LENGTH_SHORT).show()
+        if (biometricsData == null) {
+            Toast.makeText(this, "Biometric data is missing.", Toast.LENGTH_SHORT).show()
             return false
         }
         return true
     }
 
-    private fun runModelInference() {
+    private fun generateWorkoutPlan() {
         binding.progressBar.visibility = View.VISIBLE
-        binding.generatePlanButton.isEnabled = false
-
+        // --- 1. Gather all data ---
         val age = binding.ageEditText.text.toString().toInt()
         val gender = if (binding.maleRadioButton.isChecked) "Male" else "Female"
-        val level = binding.levelSpinner.selectedItem.toString()
         val goal = binding.goalSpinner.selectedItem.toString()
+        val difficulty = binding.difficultySpinner.selectedItem.toString()
 
-        workoutGenerator.generatePlan(frontalImageUri!!, sideImageUri!!, age, gender, level, goal) { workoutPlan ->
-            runOnUiThread {
+        // --- 2. Use biometrics data directly and calculate BMI ---
+        val height = biometricsData?.get("height_cm") ?: 0f
+        val weight = biometricsData?.get("weight_kg") ?: 0f
+
+        if (height == 0f || weight == 0f) {
+            Toast.makeText(this, "Could not determine height and weight from image.", Toast.LENGTH_LONG).show()
+            binding.progressBar.visibility = View.GONE
+            return
+        }
+
+        val chest = biometricsData?.get("chest") ?: 0f
+        val waist = biometricsData?.get("waist") ?: 0f
+        val hip = biometricsData?.get("hip") ?: 0f
+        val thigh = biometricsData?.get("thigh") ?: 0f
+        val bicep = biometricsData?.get("bicep") ?: 0f
+        val bmi = (weight / ((height / 100) * (height / 100)))
+
+        // --- 3. Create the UserData object ---
+        val userData = UserData(
+            age = age,
+            gender = gender,
+            heightCm = height,
+            weightKg = weight,
+            goal = goal,
+            level = difficulty,
+            bmi = bmi,
+            chestCm = chest,
+            waistCm = waist,
+            hipCm = hip,
+            thighCm = thigh,
+            bicepCm = bicep
+        )
+
+        // --- 4. Make the API call ---
+        lifecycleScope.launch {
+            try {
+                val response = RetrofitClient.instance.generateWorkout(userData)
                 binding.progressBar.visibility = View.GONE
-                binding.generatePlanButton.isEnabled = true
 
-                if (workoutPlan != null && workoutPlan.isNotEmpty()) {
-                    Toast.makeText(this, "Workout Plan Generated!", Toast.LENGTH_SHORT).show()
-                    saveWorkoutPlanAndNavigate(workoutPlan)
-                } else {
-                    Toast.makeText(this, "Failed to generate workout plan. Please try again.", Toast.LENGTH_LONG).show()
+                val intent = Intent(this@OnboardingFormActivity, WorkoutPlanActivity::class.java).apply {
+                    putExtra("WORKOUT_PLAN", Gson().toJson(response.workoutPlan))
                 }
+                startActivity(intent)
+                finishAffinity()
+
+            } catch (e: Exception) {
+                binding.progressBar.visibility = View.GONE
+                Log.e("OnboardingFormActivity", "Error generating workout plan", e)
+                Toast.makeText(this@OnboardingFormActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
-    }
-
-    private fun saveWorkoutPlanAndNavigate(workoutPlan: List<String>) {
-        val sharedPreferences = getSharedPreferences("user_prefs", MODE_PRIVATE)
-        with(sharedPreferences.edit()) {
-            // Convert list to a JSON string for easy storage
-            putString("workout_plan", Gson().toJson(workoutPlan))
-            putBoolean("has_generated_plan", true)
-            apply()
-        }
-
-        // Navigate to the main app screen
-        val intent = Intent(this, HomeActivity::class.java).apply {
-            // Clear the activity stack so the user can't go back to the onboarding process
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        startActivity(intent)
     }
 }

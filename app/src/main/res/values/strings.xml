@@ -24,8 +24,8 @@
 
     <string-array name="fitness_goals">
         <item>General Fitness</item>
-        <item>Lose Weight</item>
-        <item>Gain Muscle</item>
+        <item>Weight Loss</item>
+        <item>Muscle Gain</item>
         <item>Gain Stamina</item>
     </string-array>
 

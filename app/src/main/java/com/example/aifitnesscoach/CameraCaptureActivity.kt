@@ -1,8 +1,6 @@
 package com.example.aifitnesscoach
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -13,34 +11,30 @@ import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.example.aifitnesscoach.databinding.ActivityCameraCaptureBinding
+import com.example.aifitnesscoach.network.RetrofitClient
+import com.google.gson.Gson
+import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 class CameraCaptureActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCameraCaptureBinding
-    private lateinit var cameraExecutor: ExecutorService
     private var imageCapture: ImageCapture? = null
+    private lateinit var cameraExecutor: ExecutorService
+    private var isFrontalImage = true // To track which image we are capturing
 
-    private var captureState = CaptureState.FRONTAL
     private var frontalImageUri: Uri? = null
     private var sideImageUri: Uri? = null
-
-    private enum class CaptureState {
-        FRONTAL, SIDE
-    }
-
-    companion object {
-        private const val REQUEST_CODE_PERMISSIONS = 10
-        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
-        private const val TAG = "CameraCaptureActivity"
-        const val EXTRA_FRONTAL_IMAGE_URI = "EXTRA_FRONTAL_IMAGE_URI"
-        const val EXTRA_SIDE_IMAGE_URI = "EXTRA_SIDE_IMAGE_URI"
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,41 +43,21 @@ class CameraCaptureActivity : AppCompatActivity() {
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
-        if (allPermissionsGranted()) {
-            startCamera()
-        } else {
-            ActivityCompat.requestPermissions(this, REQUIRED_PERMISSIONS, REQUEST_CODE_PERMISSIONS)
-        }
+        startCamera()
 
-        binding.captureButton.setOnClickListener { takePhoto() }
-        updateUIForState()
-    }
-
-    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
-        ContextCompat.checkSelfPermission(baseContext, it) == PackageManager.PERMISSION_GRANTED
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<String>, grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQUEST_CODE_PERMISSIONS) {
-            if (allPermissionsGranted()) {
-                startCamera()
-            } else {
-                Toast.makeText(this, "Camera permission is required.", Toast.LENGTH_SHORT).show()
-                finish()
-            }
+        binding.captureButton.setOnClickListener {
+            takePhoto()
         }
     }
 
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+
         cameraProviderFuture.addListener({
-            val cameraProvider = cameraProviderFuture.get()
+            val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
             val preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(binding.cameraPreview.surfaceProvider)
+                it.setSurfaceProvider(binding.viewFinder.surfaceProvider)
             }
 
             imageCapture = ImageCapture.Builder().build()
@@ -92,11 +66,13 @@ class CameraCaptureActivity : AppCompatActivity() {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
+                cameraProvider.bindToLifecycle(
+                    this, cameraSelector, preview, imageCapture
+                )
             } catch (exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
-                Toast.makeText(this, "Failed to start camera.", Toast.LENGTH_SHORT).show()
             }
+
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -104,8 +80,8 @@ class CameraCaptureActivity : AppCompatActivity() {
         val imageCapture = imageCapture ?: return
 
         val photoFile = File(
-            externalMediaDirs.firstOrNull(),
-            "${System.currentTimeMillis()}_${captureState.name.lowercase()}.jpg"
+            outputDirectory,
+            SimpleDateFormat(FILENAME_FORMAT, Locale.US).format(System.currentTimeMillis()) + ".jpg"
         )
 
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
@@ -114,60 +90,83 @@ class CameraCaptureActivity : AppCompatActivity() {
             outputOptions,
             ContextCompat.getMainExecutor(this),
             object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
-                    val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
-                    handleImageSaved(savedUri)
-                }
-
                 override fun onError(exc: ImageCaptureException) {
                     Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-                    Toast.makeText(baseContext, "Photo capture failed.", Toast.LENGTH_SHORT).show()
                 }
-            }
-        )
+
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    val savedUri = Uri.fromFile(photoFile)
+                    if (isFrontalImage) {
+                        frontalImageUri = savedUri
+                        isFrontalImage = false
+                        binding.instructionTextView.text = "Now, please take a side-view photo."
+                        // You can also show the captured image preview here if you want
+                    } else {
+                        sideImageUri = savedUri
+                        // Now we have both images, let's upload them
+                        uploadImages()
+                    }
+                }
+            })
     }
 
-    private fun handleImageSaved(savedUri: Uri) {
-        when (captureState) {
-            CaptureState.FRONTAL -> {
-                frontalImageUri = savedUri
-                Toast.makeText(this, "Frontal image captured!", Toast.LENGTH_SHORT).show()
-                captureState = CaptureState.SIDE
-                updateUIForState()
-            }
-            CaptureState.SIDE -> {
-                sideImageUri = savedUri
-                Toast.makeText(this, "Side image captured!", Toast.LENGTH_SHORT).show()
-                proceedToNextStep()
+    private fun uploadImages() {
+        if (frontalImageUri == null || sideImageUri == null) {
+            Toast.makeText(this, "Please capture both images.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch {
+            try {
+                val frontalFile = File(frontalImageUri!!.path!!)
+                val sideFile = File(sideImageUri!!.path!!)
+
+                val frontalRequestBody = frontalFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                val sideRequestBody = sideFile.asRequestBody("image/jpeg".toMediaTypeOrNull())
+
+                val frontalPart = MultipartBody.Part.createFormData("frontal_image", frontalFile.name, frontalRequestBody)
+                val sidePart = MultipartBody.Part.createFormData("side_image", sideFile.name, sideRequestBody)
+
+                val response = RetrofitClient.instance.predictBiometrics(frontalPart, sidePart)
+
+                // On success, navigate to the OnboardingFormActivity
+                val intent = Intent(this@CameraCaptureActivity, OnboardingFormActivity::class.java).apply {
+                    // Pass the biometrics data as a JSON string
+                    putExtra("BIOMETRICS_DATA", Gson().toJson(response.biometrics))
+
+                    // **ADD THESE TWO LINES**
+                    putExtra("FRONTAL_IMAGE_URI", frontalImageUri.toString())
+                    putExtra("SIDE_IMAGE_URI", sideImageUri.toString())
+                }
+                startActivity(intent)
+                finish() // Finish this activity
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error uploading images", e)
+                Toast.makeText(this@CameraCaptureActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                // Reset for re-capture
+                isFrontalImage = true
+                frontalImageUri = null
+                sideImageUri = null
+                binding.instructionTextView.text = "Please take a frontal-view photo."
             }
         }
     }
 
-    private fun updateUIForState() {
-        when (captureState) {
-            CaptureState.FRONTAL -> {
-                binding.instructionText.text = "Align Your Body: Frontal View"
-                binding.outlineOverlay.setImageResource(R.drawable.ic_outline_frontal)
-            }
-            CaptureState.SIDE -> {
-                binding.instructionText.text = "Align Your Body: Side View"
-                binding.outlineOverlay.setImageResource(R.drawable.ic_outline_side)
-            }
+    private val outputDirectory: File by lazy {
+        val mediaDir = externalMediaDirs.firstOrNull()?.let {
+            File(it, resources.getString(R.string.app_name)).apply { mkdirs() }
         }
-    }
-
-    // --- THIS FUNCTION IS NOW CORRECTED ---
-    private fun proceedToNextStep() {
-        val intent = Intent(this, OnboardingFormActivity::class.java).apply {
-            putExtra(EXTRA_FRONTAL_IMAGE_URI, frontalImageUri.toString())
-            putExtra(EXTRA_SIDE_IMAGE_URI, sideImageUri.toString())
-        }
-        startActivity(intent)
-        finish() // Close camera activity
+        mediaDir ?: filesDir
     }
 
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+    }
+
+    companion object {
+        private const val TAG = "CameraCaptureActivity"
+        private const val FILENAME_FORMAT = "yyyy-MM-dd-HH-mm-ss-SSS"
     }
 }

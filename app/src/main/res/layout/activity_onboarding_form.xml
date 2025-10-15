@@ -29,18 +29,19 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Confirm your photos and provide your details to generate a personalized workout plan."
+            android:text="Confirm your photos and provide your details to generate a personalized plan."
             android:textColor="@android:color/darker_gray"
             android:textSize="16sp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/titleTextView" />
 
+        <!-- Image Previews -->
         <LinearLayout
-            android:id="@+id/imagePreviewsLayout"
+            android:id="@+id/imagePreviewLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
@@ -51,32 +52,33 @@
                 android:layout_width="0dp"
                 android:layout_height="200dp"
                 android:layout_weight="1"
-                android:background="#222222"
+                android:layout_marginEnd="8dp"
                 android:scaleType="centerCrop"
-                tools:srcCompat="@tools:sample/avatars" />
+                tools:src="@tools:sample/avatars" />
 
             <ImageView
                 android:id="@+id/sideImageView"
                 android:layout_width="0dp"
                 android:layout_height="200dp"
-                android:layout_marginStart="16dp"
+                android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:background="#222222"
                 android:scaleType="centerCrop"
-                tools:srcCompat="@tools:sample/avatars" />
+                tools:src="@tools:sample/avatars" />
         </LinearLayout>
 
+
+        <!-- Age Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/ageInputLayout"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="16dp"
             android:hint="Age"
             android:textColorHint="@android:color/darker_gray"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/imagePreviewsLayout">
+            app:layout_constraintTop_toBottomOf="@id/imagePreviewLayout">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/ageEditText"
@@ -86,29 +88,22 @@
                 android:textColor="@android:color/white" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <TextView
-            android:id="@+id/genderLabel"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Gender"
-            android:textColor="@android:color/darker_gray"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/ageInputLayout" />
-
+        <!-- Gender Selection -->
         <RadioGroup
             android:id="@+id/genderRadioGroup"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/genderLabel">
+            app:layout_constraintTop_toBottomOf="@id/ageInputLayout">
 
             <RadioButton
                 android:id="@+id/maleRadioButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:checked="true"
                 android:text="Male"
                 android:textColor="@android:color/white" />
 
@@ -116,22 +111,25 @@
                 android:id="@+id/femaleRadioButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
                 android:text="Female"
                 android:textColor="@android:color/white" />
         </RadioGroup>
 
+        <!-- Difficulty Spinner -->
         <TextView
-            android:id="@+id/levelLabel"
+            android:id="@+id/difficultyLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Fitness Level"
-            android:textColor="@android:color/darker_gray"
+            android:text="Select Difficulty"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/genderRadioGroup" />
 
         <Spinner
-            android:id="@+id/levelSpinner"
+            android:id="@+id/difficultySpinner"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
@@ -139,17 +137,19 @@
             android:popupBackground="#333333"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/levelLabel" />
+            app:layout_constraintTop_toBottomOf="@id/difficultyLabel" />
 
+        <!-- Goal Spinner -->
         <TextView
             android:id="@+id/goalLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Primary Fitness Goal"
-            android:textColor="@android:color/darker_gray"
+            android:text="Select Your Goal"
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/levelSpinner" />
+            app:layout_constraintTop_toBottomOf="@id/difficultySpinner" />
 
         <Spinner
             android:id="@+id/goalSpinner"
