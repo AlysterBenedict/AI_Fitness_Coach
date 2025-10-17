@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     // Corrected IP address from your ipconfig output
-    private const val BASE_URL = "http://192.168.1.8:8000/"
+    private const val BASE_URL = "http://10.178.77.215:8000/"
 
     val instance: ApiService by lazy {
         val logging = HttpLoggingInterceptor().apply {
